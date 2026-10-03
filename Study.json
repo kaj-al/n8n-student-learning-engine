@@ -1,0 +1,786 @@
+{
+  "name": "Study",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1904,
+        -800
+      ],
+      "id": "00f36304-26d3-4d3f-ab82-c89d270fa887",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1440,
+        -800
+      ],
+      "id": "aa6501f0-0009-4068-afc4-258c95f4fc02",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Weak topics: {{$json.weakTopics.join(',')}}. Average score: {{$json.avgScore}}.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a learning path generator. You MUST use resource_id values EXACTLY from this list: RES001 (algebra), RES002 (geometry), RES003 (trigonometry). Do not invent new resource_ids. Return ONLY valid JSON, no markdown, no explanation: {\"day1\":{\"topic\":\"\",\"resource_id\":\"\",\"reason\":\"\"},\"day2\":{...},\"day3\":{...}}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -288,
+        -672
+      ],
+      "id": "4c2d7f9b-2679-438e-a782-1b37af312058",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "jsCode": "const student = $json;\nconst scores = JSON.parse(student.quiz_scores || '[]');\nconst avgScore = scores.length ? scores.reduce((a,b)=>a+b,0)/scores.length : 0;\nreturn [{ json: { ...student, avgScore, totalAttempts: Number(scores.length) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1168,
+        -784
+      ],
+      "id": "89af8d30-79e2-4248-987f-2d78dc1c7ab9",
+      "name": "Calculate metrics"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\nconst topicScores = JSON.parse(data.topic_wise_scores || '{}');\nconst weakTopics = Object.entries(topicScores)\n  .filter(([topic, score]) => score < 60)\n  .map(([topic]) => topic);\nreturn [{ json: { ...data, weakTopics } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        -784
+      ],
+      "id": "67fc216d-275a-4e7a-b63d-abaa80423e0b",
+      "name": "Find weak topics"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        -464
+      ],
+      "id": "75218ac0-4add-4640-aeeb-5f7bf8a50aef",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "sn8qCXYCniKH1IsD",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "72c7166b-1c05-4256-92ca-a52b106ea2ba",
+              "leftValue": "={{$json.totalAttempts}}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -640,
+        -784
+      ],
+      "id": "0024e3d4-cd74-4cd2-bcce-7fe6e54ded1c",
+      "name": "Enough data"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9721987c-4454-40a8-bfde-ac17f7dec9a0",
+              "name": "student_id",
+              "value": "={{$json.student_id}}",
+              "type": "string"
+            },
+            {
+              "id": "b20ee01e-8194-4e4f-a062-fa6f37845cb9",
+              "name": "email",
+              "value": "={{$json.email}}",
+              "type": "string"
+            },
+            {
+              "id": "58acafef-5ec3-4e36-b72e-649c2fe517d5",
+              "name": "finalPlan",
+              "value": "[   {\"day\":\"day1\",\"topic\":\"Diagnostic Quiz - Core Concepts\",\"resource_link\":\"https://yourdomain.com/quiz/diag1\",\"reason\":\"Baseline assessment\"},   {\"day\":\"day2\",\"topic\":\"Diagnostic Quiz - Applied\",\"resource_link\":\"https://yourdomain.com/quiz/diag2\",\"reason\":\"Baseline assessment\"},   {\"day\":\"day3\",\"topic\":\"Diagnostic Quiz - Mixed Review\",\"resource_link\":\"https://yourdomain.com/quiz/diag3\",\"reason\":\"Baseline assessment\"} ]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -512,
+        -288
+      ],
+      "id": "3d62ce06-afdb-49f6-b7ab-01b429878a09",
+      "name": "Diagnostic fallback"
+    },
+    {
+      "parameters": {
+        "jsCode": "const plan = $json.output;\nconst days = ['day1','day2','day3'];\nconst isValid = plan && days.every(d => plan[d]?.topic && plan[d]?.resource_id);\nreturn [{ json: { ...(plan || {}), isValid: !!isValid, retryCount: $json.retryCount || 0, student_id: $('Find weak topics').item.json.student_id, email: $('Find weak topics').item.json.email } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        -672
+      ],
+      "id": "922a9b76-3a6b-49bf-bdd3-3f27a0021ec7",
+      "name": "Check validity"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ecc9f84e-3bd9-4d30-bfdf-c3655bc8d565",
+              "leftValue": "={{$json.isValid}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "00ab81ed-94cc-440c-9ad8-c279cb4638e0",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        288,
+        -672
+      ],
+      "id": "377c79e0-bd31-4e42-8740-c0bf05a4eb1c",
+      "name": "Valid"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, retryCount: ($json.retryCount || 0) + 1, weakTopics: $('Find weak topics').item.json.weakTopics, avgScore: $('Find weak topics').item.json.avgScore } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        -496
+      ],
+      "id": "08e3d1e5-e4aa-41a8-8e69-d76cf185b6dd",
+      "name": "Increment retry"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6fa30797-0877-4086-b52e-5bb94b06732d",
+              "leftValue": "={{$json.retryCount}}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        736,
+        -496
+      ],
+      "id": "76afcbaa-ca2e-4e45-acb3-f9a38b0dffc9",
+      "name": "Retry limit check"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"day1\": {\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"},\"resource_id\":{\"type\":\"string\"},\"reason\":{\"type\":\"string\"}},\"required\":[\"topic\",\"resource_id\",\"reason\"]},\n    \"day2\": {\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"},\"resource_id\":{\"type\":\"string\"},\"reason\":{\"type\":\"string\"}},\"required\":[\"topic\",\"resource_id\",\"reason\"]},\n    \"day3\": {\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"},\"resource_id\":{\"type\":\"string\"},\"reason\":{\"type\":\"string\"}},\"required\":[\"topic\",\"resource_id\",\"reason\"]}\n  },\n  \"required\": [\"day1\",\"day2\",\"day3\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -144,
+        -464
+      ],
+      "id": "0a20fce1-d610-41b3-bad3-af63e536be32",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1BA6n6884EI9xvXgmD5e-n_dSu03nf6XpJ7ZOwBDiIRQ/edit?usp=drive_link",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1556619665,
+          "mode": "list",
+          "cachedResultName": "Students",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BA6n6884EI9xvXgmD5e-n_dSu03nf6XpJ7ZOwBDiIRQ/edit#gid=1556619665"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1664,
+        -800
+      ],
+      "id": "24c19a1a-73e9-4956-b4f2-85db68e7f960",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xm3pNENv9z45vaLd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const plan = $('Check validity').item.json;\nconst content = $items('Get Learning Content').map(i => i.json);\nconst finalPlan = ['day1','day2','day3'].map(d => {\n  const c = content.find(c => c.resource_id?.trim().toLowerCase() === plan[d]?.resource_id?.trim().toLowerCase());\n  return { day: d, topic: plan[d]?.topic, resource_link: c?.link || 'fallback-link', reason: plan[d]?.reason };\n});\nreturn [{ json: { student_id: plan.student_id, email: plan.email, finalPlan } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        -688
+      ],
+      "id": "d89cbbd0-017c-4ca2-b426-a77b81403b79",
+      "name": "Final Plan"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BA6n6884EI9xvXgmD5e-n_dSu03nf6XpJ7ZOwBDiIRQ",
+          "mode": "list",
+          "cachedResultName": "student_personalization_sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BA6n6884EI9xvXgmD5e-n_dSu03nf6XpJ7ZOwBDiIRQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1357980533,
+          "mode": "list",
+          "cachedResultName": "ContentLibrary",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BA6n6884EI9xvXgmD5e-n_dSu03nf6XpJ7ZOwBDiIRQ/edit#gid=1357980533"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        512,
+        -688
+      ],
+      "id": "0fb52029-1539-4a6e-972b-98d7cbaeb5c2",
+      "name": "Get Learning Content",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xm3pNENv9z45vaLd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $json;\nreturn [{ json: {\n  student_id: p.student_id,\n  date: new Date().toISOString(),\n  day1_topic: p.finalPlan[0].topic, day1_link: p.finalPlan[0].resource_link,\n  day2_topic: p.finalPlan[1].topic, day2_link: p.finalPlan[1].resource_link,\n  day3_topic: p.finalPlan[2].topic, day3_link: p.finalPlan[2].resource_link,\n  email: p.email\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -304
+      ],
+      "id": "5ea9dc61-2b6d-4b25-9559-4824f8b5aa18",
+      "name": "Flatten for Sheets"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1BA6n6884EI9xvXgmD5e-n_dSu03nf6XpJ7ZOwBDiIRQ",
+          "mode": "list",
+          "cachedResultName": "student_personalization_sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BA6n6884EI9xvXgmD5e-n_dSu03nf6XpJ7ZOwBDiIRQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1032418272,
+          "mode": "list",
+          "cachedResultName": "Recommendations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BA6n6884EI9xvXgmD5e-n_dSu03nf6XpJ7ZOwBDiIRQ/edit#gid=1032418272"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "student_id",
+              "displayName": "student_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "day1_topic",
+              "displayName": "day1_topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "day1_link",
+              "displayName": "day1_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "day2_topic",
+              "displayName": "day2_topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "day2_link",
+              "displayName": "day2_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "day3_topic",
+              "displayName": "day3_topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "day3_link",
+              "displayName": "day3_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1392,
+        -304
+      ],
+      "id": "cc130c53-0c92-412d-b4aa-811c0231d26e",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xm3pNENv9z45vaLd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Find weak topics').item.json.email }}",
+        "subject": "Your 3 Day Plan",
+        "message": "=<h3>Your Personalized Plan</h3>\n<ul>\n<li>Day 1: {{ $('Flatten for Sheets').item.json.day1_topic }} - <a href=\"{{ $('Flatten for Sheets').item.json.day1_link }}\">Start</a></li>\n<li>Day 2: {{ $('Flatten for Sheets').item.json.day2_topic }} - <a href=\"{{ $('Flatten for Sheets').item.json.day2_link }}\">Start</a></li>\n<li>Day 3: {{ $('Flatten for Sheets').item.json.day3_topic }} - <a href=\"{{ $('Flatten for Sheets').item.json.day3_link }}\">Start</a></li>\n</ul>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1584,
+        -304
+      ],
+      "id": "9f99c6c6-02fa-462a-9b6b-9e40b9f9ac38",
+      "name": "Send a message",
+      "webhookId": "a8fb2798-75ff-4a76-b2b4-50059d8dd03a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "SPcqKnpsk9zWyLsz",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Calculate metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate metrics": {
+      "main": [
+        [
+          {
+            "node": "Find weak topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find weak topics": {
+      "main": [
+        [
+          {
+            "node": "Enough data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enough data": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Diagnostic fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Check validity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check validity": {
+      "main": [
+        [
+          {
+            "node": "Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid": {
+      "main": [
+        [
+          {
+            "node": "Get Learning Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Increment retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment retry": {
+      "main": [
+        [
+          {
+            "node": "Retry limit check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry limit check": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Diagnostic fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Learning Content": {
+      "main": [
+        [
+          {
+            "node": "Final Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Plan": {
+      "main": [
+        [
+          {
+            "node": "Flatten for Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Diagnostic fallback": {
+      "main": [
+        [
+          {
+            "node": "Flatten for Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten for Sheets": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "f0520ef3-155d-4f2c-882e-5a70a145418b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7198b440318b74fe653bce9f75ec013ae8a9eb1fc570ee5b7e8bfa1e01ef39a6"
+  },
+  "nodeGroups": [],
+  "id": "uDYHNQUeB6Grt2SN",
+  "tags": []
+}
