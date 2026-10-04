@@ -15,6 +15,8 @@ The workflow is designed to:
 - Save the final recommendations to a Google Sheet
 - Send the final plan to the student via Gmail
 
+  ![Design Architecture](workflow.jpeg)
+
 ## Workflow behavior
 
 The workflow in `Study.json` runs on a schedule trigger and follows this flow:
