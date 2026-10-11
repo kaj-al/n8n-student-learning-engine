@@ -15,7 +15,7 @@ The workflow is designed to:
 - Save the final recommendations to a Google Sheet
 - Send the final plan to the student via Gmail
 
-  ![Design Architecture](workflow.jpeg)
+  ![Design Architecture](workflow.jpg)
 
 ## Workflow behavior
 
